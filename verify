@@ -1,0 +1,5 @@
+#!/bin/bash
+
+node verify.js
+node --harmony_collections verify.js
+
