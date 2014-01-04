@@ -124,6 +124,10 @@
     ses.weakMapPermitHostObjects = weakMapPermitHostObjects;
   }
 
+  // IE 11 has no Proxy but has a broken WeakMap such that we need to patch
+  // it using DoubleWeakMap; this flag tells DoubleWeakMap so.
+  var doubleWeakMapCheckSilentFailure = false;
+
   // Check if there is already a good-enough WeakMap implementation, and if so
   // exit without replacing it.
   if (typeof WeakMap === 'function') {
@@ -147,10 +151,18 @@
       //    }
       //  } catch (e) {}
 
-      // Fall through to installing our WeakMap.
     } else {
-      module.exports = WeakMap;
-      return;
+      // IE 11 bug: WeakMaps silently fail to store frozen objects.
+      var testMap = new HostWeakMap();
+      var testObject = Object.freeze({});
+      testMap.set(testObject, 1);
+      if (testMap.get(testObject) !== 1) {
+        doubleWeakMapCheckSilentFailure = true;
+        // Fall through to installing our WeakMap.
+      } else {
+        module.exports = WeakMap;
+        return;
+      }
     }
   }
 
@@ -517,6 +529,13 @@
       // that it may refuse to store some key types. Therefore, make a map
       // implementation which makes use of both as possible.
 
+      // In this mode we are always using double maps, so we are not proxy-safe.
+      // This combination does not occur in any known browser, but we had best
+      // be safe.
+      if (doubleWeakMapCheckSilentFailure && typeof Proxy !== 'undefined') {
+        Proxy = undefined;
+      }
+
       function DoubleWeakMap() {
         if (!(this instanceof OurWeakMap)) {  // approximate test for new ...()
           calledAsFunctionWarning();
@@ -536,6 +555,9 @@
         // arbitrary WeakMaps to switch to using hidden properties, but only
         // those which need the ability, and unprivileged code is not allowed
         // to set the flag.
+        //
+        // (Except in doubleWeakMapCheckSilentFailure mode in which case we
+        // disable proxies.)
         var enableSwitching = false;
 
         function dget(key, opt_default) {
@@ -551,17 +573,28 @@
           return hmap.has(key) || (omap ? omap.has___(key) : false);
         }
 
-        function dset(key, value) {
-          if (enableSwitching) {
-            try {
-              hmap.set(key, value);
-            } catch (e) {
-              if (!omap) { omap = new OurWeakMap(); }
-              omap.set___(key, value);
-            }
-          } else {
+        var dset;
+        if (doubleWeakMapCheckSilentFailure) {
+          dset = function(key, value) {
             hmap.set(key, value);
-          }
+            if (!hmap.has(key)) {
+              if (!omap) { omap = new OurWeakMap(); }
+              omap.set(key, value);
+            }
+          };
+        } else {
+          dset = function(key, value) {
+            if (enableSwitching) {
+              try {
+                hmap.set(key, value);
+              } catch (e) {
+                if (!omap) { omap = new OurWeakMap(); }
+                omap.set___(key, value);
+              }
+            } else {
+              hmap.set(key, value);
+            }
+          };
         }
 
         function ddelete(key) {
