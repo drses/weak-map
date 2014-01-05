@@ -4,7 +4,8 @@
   "description": "A WeakMap shim for Node.js and browsers",
   "main": "weak-map.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./verify",
+    "bench": "matcha bench.js"
   },
   "repository": {
     "type": "git",
@@ -23,5 +24,8 @@
   "license": "Apache 2.0",
   "bugs": {
     "url": "https://github.com/drses/weak-map/issues"
+  },
+  "devDependencies": {
+    "matcha": "~0.4.1"
   }
 }
