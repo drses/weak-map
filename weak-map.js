@@ -309,23 +309,14 @@
       // Weak map must brute force, as explained in doc-comment above.
       return void 0;
     }
-    var gets = [];
-    var vals = [];
-    hiddenRecord = {
-      key: key,   // self pointer for quick own check above.
-      gets: gets, // get___ methods identifying weak maps
-      vals: vals  // values associated with this key in each
-                  // corresponding weak map.
-    };
-    defProp(key, HIDDEN_NAME, {
-      value: hiddenRecord,
-      writable: false,
-      enumerable: false,
-      configurable: false
-    });
+    var hiddenRecord = Object.create(null);
+    // For quickly verifying that this hidden record is an owned property, not
+    // a hidden record from up the prototype chain.
+    hiddenRecord.key = key;
+    defProp(key, HIDDEN_NAME, {value: hiddenRecord});
+    // Implicitly non-enumerable, read-only, non-configurable
     return hiddenRecord;
   }
-
 
   /**
    * Monkey patch operations that would make their argument
@@ -360,7 +351,6 @@
     });
   })();
 
-
   function constFunc(func) {
     func.prototype = null;
     return Object.freeze(func);
@@ -377,10 +367,7 @@
     }
   }
 
-  // Right now (12/25/2012) the histogram supports the current
-  // representation. We should check this occasionally, as a true
-  // constant time representation is easy.
-  // var histogram = [];
+  var nextId = 0;
 
   var OurWeakMap = function() {
     if (!(this instanceof OurWeakMap)) {  // approximate test for new ...()
@@ -390,73 +377,52 @@
     // We are currently (12/25/2012) never encountering any prematurely
     // non-extensible keys.
     var keys = []; // brute force for prematurely non-extensible keys.
-    var vals = []; // brute force for corresponding values.
+    var values = []; // brute force for corresponding values.
+    var id = nextId++;
 
     function get___(key, opt_default) {
-      var hr = getHiddenRecord(key);
-      var i, vs;
-      if (hr) {
-        i = hr.gets.indexOf(get___);
-        vs = hr.vals;
+      var index;
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        return id in hiddenRecord ? hiddenRecord[id] : opt_default;
       } else {
-        i = keys.indexOf(key);
-        vs = vals;
+        index = keys.indexOf(key);
+        return index >= 0 ? values[index] : opt_default;
       }
-      return (i >= 0) ? vs[i] : opt_default;
     }
 
     function has___(key) {
-      var hr = getHiddenRecord(key);
-      var i;
-      if (hr) {
-        i = hr.gets.indexOf(get___);
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        return id in hiddenRecord;
       } else {
-        i = keys.indexOf(key);
+        return keys.indexOf(key) >= 0;
       }
-      return i >= 0;
     }
 
     function set___(key, value) {
-      var hr = getHiddenRecord(key);
-      var i;
-      if (hr) {
-        i = hr.gets.indexOf(get___);
-        if (i >= 0) {
-          hr.vals[i] = value;
-        } else {
-//          i = hr.gets.length;
-//          histogram[i] = (histogram[i] || 0) + 1;
-          hr.gets.push(get___);
-          hr.vals.push(value);
-        }
+      var index;
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        hiddenRecord[id] = value;
       } else {
-        i = keys.indexOf(key);
-        if (i >= 0) {
-          vals[i] = value;
+        index = keys.indexOf(key);
+        if (index >= 0) {
+          values[index] = value;
         } else {
           keys.push(key);
-          vals.push(value);
+          values.push(value);
         }
       }
     }
 
     function delete___(key) {
-      var hr = getHiddenRecord(key);
-      var i;
-      if (hr) {
-        i = hr.gets.indexOf(get___);
-        if (i >= 0) {
-          hr.gets.splice(i, 1);
-          hr.vals.splice(i, 1);
-        }
+      var hiddenRecord = getHiddenRecord(key);
+      if (hiddenRecord) {
+        delete hiddenRecord[id];
       } else {
-        i = keys.indexOf(key);
-        if (i >= 0) {
-          keys.splice(i, 1);
-          vals.splice(i, 1);
-        }
+        return keys.indexOf(key) >= 0;
       }
-      return true;
     }
 
     return Object.create(OurWeakMap.prototype, {
@@ -466,6 +432,7 @@
       delete___: { value: constFunc(delete___) }
     });
   };
+
   OurWeakMap.prototype = Object.create(Object.prototype, {
     get: {
       /**
