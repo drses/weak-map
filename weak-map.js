@@ -418,10 +418,23 @@
 
     function delete___(key) {
       var hiddenRecord = getHiddenRecord(key);
+      var index, had;
       if (hiddenRecord) {
+        // delete does not return whether the value originally existed, but
+        // rather whether the delete succeeded. It can only fail if the
+        // property is not configurable. So we do a has check beforehand.
+        had = id in hiddenRecord;
         delete hiddenRecord[id];
+        return had;
       } else {
-        return keys.indexOf(key) >= 0;
+        index = keys.indexOf(key);
+        if (index >= 0) {
+          keys.splice(index, 1);
+          values.splice(index, 1);
+          return true;
+        } else {
+          return false;
+        }
       }
     }
 
@@ -463,7 +476,7 @@
        * previous association if present.
        */
       value: function set(key, value) {
-        this.set___(key, value);
+        return this.set___(key, value);
       },
       writable: true,
       configurable: true
