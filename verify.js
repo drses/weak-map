@@ -8,8 +8,18 @@ if (WeakMap === global.WeakMap) {
 var wm1 = new WeakMap();
 var wm2 = new WeakMap();
 var o = {};
-wm1.set(o, 10);
-wm1.set(p, 11);
+if (wm1.set(o, 10) !== undefined) {
+  console.log("error adding a non-extant entry");
+}
+if (wm1.set(o, 10) !== undefined) {
+  console.log("error adding an extant entry");
+}
+if (wm1.set(p, 11) !== undefined) {
+  console.log("error adding a non-extant frozen entry");
+}
+if (wm1.set(p, 11) !== undefined) {
+  console.log("error adding an extant frozen entry");
+}
 wm2.set(o, 20);
 wm2.set(p, 21);
 
@@ -31,4 +41,17 @@ if (wm2.has(o) !== true) {
 wm2.delete(o);
 if (wm2.has(o) !== false) {
   console.log("error");
+}
+
+if (wm1.delete(o) !== true) {
+  console.log("error on delete extant value");
+}
+if (wm1.delete({}) !== false) {
+  console.log("error on delete non-extant value");
+}
+if (wm1.delete(p) !== true) {
+  console.log("error on delete frozen extant value");
+}
+if (wm1.delete(Object.freeze({})) !== false) {
+  console.log("error on delete frozen non-extant value");
 }
