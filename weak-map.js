@@ -22,8 +22,11 @@
  * implementation where the {@code WeakMap} specification does not
  * quite conform, run <code>repairES5.js</code> first.
  *
- * <p> Even though WeakMapModule is not global, the linter thinks it
+ * <p>Even though WeakMapModule is not global, the linter thinks it
  * is, which is why it is in the overrides list below.
+ *
+ * <p>NOTE: Before using this WeakMap emulation in a non-SES
+ * environment, see the note below about hiddenRecord.
  *
  * @author Mark S. Miller
  * @requires crypto, ArrayBuffer, Uint8Array, navigator, console
@@ -309,12 +312,38 @@
       // Weak map must brute force, as explained in doc-comment above.
       return void 0;
     }
-    var hiddenRecord = Object.create(null);
-    // For quickly verifying that this hidden record is an owned property, not
-    // a hidden record from up the prototype chain.
-    hiddenRecord.key = key;
-    defProp(key, HIDDEN_NAME, {value: hiddenRecord});
-    // Implicitly non-enumerable, read-only, non-configurable
+
+    // The hiddenRecord and the key point directly at each other, via
+    // the "key" and HIDDEN_NAME properties respectively. The key
+    // field is for quickly verifying that this hidden record is an
+    // own property, not a hidden record from up the prototype chain.
+    //
+    // NOTE: Because this WeakMap emulation is meant only for systems like
+    // SES where Object.prototype is frozen without any numeric
+    // properties, it is ok to use an object literal for the hiddenRecord.
+    // This has two advantages:
+    // * It is much faster in a performance critical place
+    // * It avoids relying on Object.create(null), which had been
+    //   problematic on Chrome 28.0.1480.0. See
+    //   https://code.google.com/p/google-caja/issues/detail?id=1687
+    hiddenRecord = { key: key };
+
+    // When using this WeakMap emulation on platforms where
+    // Object.prototype might not be frozen and Object.create(null) is
+    // reliable, use the following two commented out lines instead.
+    // hiddenRecord = Object.create(null);
+    // hiddenRecord.key = key;
+
+    // Please contact us if you need this to work on platforms where
+    // Object.prototype might not be frozen and
+    // Object.create(null) might not be reliable.
+
+    defProp(key, HIDDEN_NAME, {
+      value: hiddenRecord,
+      writable: false,
+      enumerable: false,
+      configurable: false
+    });
     return hiddenRecord;
   }
 
@@ -410,31 +439,53 @@
         if (index >= 0) {
           values[index] = value;
         } else {
-          keys.push(key);
-          values.push(value);
+          // Since some browsers preemptively terminate slow turns but
+          // then continue computing with presumably corrupted heap
+          // state, we here defensively get keys.length first and then
+          // use it to update both the values and keys arrays, keeping
+          // them in sync.
+          index = keys.length;
+          values[index] = value;
+          // If we crash here, values will be one longer than keys.
+          keys[index] = key;
         }
       }
+      return this;
     }
 
     function delete___(key) {
       var hiddenRecord = getHiddenRecord(key);
-      var index, had;
+      var index, lastIndex;
       if (hiddenRecord) {
-        // delete does not return whether the value originally existed, but
-        // rather whether the delete succeeded. It can only fail if the
-        // property is not configurable. So we do a has check beforehand.
-        had = id in hiddenRecord;
-        delete hiddenRecord[id];
-        return had;
+        return id in hiddenRecord && delete hiddenRecord[id];
       } else {
         index = keys.indexOf(key);
-        if (index >= 0) {
-          keys.splice(index, 1);
-          values.splice(index, 1);
-          return true;
-        } else {
+        if (index < 0) {
           return false;
         }
+        // Since some browsers preemptively terminate slow turns but
+        // then continue computing with potentially corrupted heap
+        // state, we here defensively get keys.length first and then use
+        // it to update both the keys and the values array, keeping
+        // them in sync. We update the two with an order of assignments,
+        // such that any prefix of these assignments will preserve the
+        // key/value correspondence, either before or after the delete.
+        // Note that this needs to work correctly when index === lastIndex.
+        lastIndex = keys.length - 1;
+        keys[index] = void 0;
+        // If we crash here, there's a void 0 in the keys array, but
+        // no operation will cause a "keys.indexOf(void 0)", since
+        // getHiddenRecord(void 0) will always throw an error first.
+        values[index] = values[lastIndex];
+        // If we crash here, values[index] cannot be found here,
+        // because keys[index] is void 0.
+        keys[index] = keys[lastIndex];
+        // If index === lastIndex and we crash here, then keys[index]
+        // is still void 0, since the aliasing killed the previous key.
+        keys.length = lastIndex;
+        // If we crash here, keys will be one shorter than values.
+        values.length = lastIndex;
+        return true;
       }
     }
 
@@ -561,6 +612,7 @@
               if (!omap) { omap = new OurWeakMap(); }
               omap.set(key, value);
             }
+            return this;
           };
         } else {
           dset = function(key, value) {
@@ -574,12 +626,14 @@
             } else {
               hmap.set(key, value);
             }
+            return this;
           };
         }
 
         function ddelete(key) {
-          hmap['delete'](key);
-          if (omap) { omap.delete___(key); }
+          var result = !!hmap['delete'](key);
+          if (omap) { return omap.delete___(key) || result; }
+          return result;
         }
 
         return Object.create(OurWeakMap.prototype, {

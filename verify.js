@@ -8,16 +8,16 @@ if (WeakMap === global.WeakMap) {
 var wm1 = new WeakMap();
 var wm2 = new WeakMap();
 var o = {};
-if (wm1.set(o, 10) !== undefined) {
+if (wm1.set(o, 10) !== wm1) {
   console.log("error adding a non-extant entry");
 }
-if (wm1.set(o, 10) !== undefined) {
+if (wm1.set(o, 10) !== wm1) {
   console.log("error adding an extant entry");
 }
-if (wm1.set(p, 11) !== undefined) {
+if (wm1.set(p, 11) !== wm1) {
   console.log("error adding a non-extant frozen entry");
 }
-if (wm1.set(p, 11) !== undefined) {
+if (wm1.set(p, 11) !== wm1) {
   console.log("error adding an extant frozen entry");
 }
 wm2.set(o, 20);
