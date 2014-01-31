@@ -43,19 +43,39 @@ dependees to use weak maps regardless of whether they are implemented by
 the underlying engine, albeit in a way that leaks memory in some
 non-obvious cases.
 
-The canonical implementation of `WeakMap` exists in the Google Caja
-Subversion repository at http://google-caja.googlecode.com/svn/trunk.
-It was written by Mark S. Miller.  It is released by Google with the
-Apache 2.0 license.  This package is maintained by Kris Kowal.
+### Purpose and limitation
+
+This shim depends on and modifies ECMAScript 5 property descriptor related
+methods, `Object.defineProperty`, `Object.getOwnPropertyNames`,
+`Object.isExtensible`, `Object.freeze`, and `Object.seal`.
 
 In a nutshell, the WeakMap shim emulates a WeakMap by adding a hidden
 property to the key that associates the weak map with the retained
-object.  Thus, in many cases, if the key is garbage collected, the value
-may be garbage collected.  I will leave [Mark Miller][Proposal] to
-evince the details.  The shim depends on EcmaScript 5’s API’s to cover
-its tracks.
+object. The shim overrides the ECMAScript 5 methods to cover its tracks.
 
-[Proposal]: http://wiki.ecmascript.org/doku.php?id=harmony:weak_maps
+Consider a scenario that only includes a weak map, a key, and a corresponding
+value through the weak map. With a proper `WeakMap`, built into the JavaScript
+engine privy to the internals of the garbage collector, the `value` would be
+retained either by the key or the weak map. If *either* the key or the weak map
+are elligible for garbage collection, the value is elligible.
+
+This is in contrast to to a plain `Map`. In a scenario with a map, a key, and a
+value corresponding to the key through the map, neither the key nor the value
+will be eligible for garbage collection until the map containing them is
+elligible. Thus, if a map is used to establish a relationship between ephemeral
+keys and values, it will accumulate garbage.
+
+This shim does its best to approximate a proper `WeakMap` without an intimate
+relationship with the garbage collector. In the same scenario, the value will
+become elligible for garbage collection if the key is elligible. Unlike a proper
+weak map, if the weak map shim becomes elligible for garbage collection but the
+key is retained by something else, the value will be retained. In this scenario,
+all operations of the weak map take constant time.
+
+However, if the key is *frozen*, the weak map retains both the key and the value
+and neither are elligible for collection until the weak map becomes elligible
+itself. This scenario is unfortunately identical to the behavior of a `Map`.
+Additionally, all operations of the weak map suffer linear time.
 
 As stated by Mark Miller in the code:
 
@@ -94,4 +114,16 @@ As stated by Mark Miller in the code:
 > channel. (See PATCH_MUTABLE_FROZEN_WEAKMAP_PROTO in repairES5.js).
 
 This refers to `repairES5.js` as provided by Google Caja.
+
+### Origin and license
+
+The canonical implementation of `WeakMap` exists in the Google Caja
+Subversion repository at http://google-caja.googlecode.com/svn/trunk.
+It was written by Mark S. Miller.  It is released by Google with the
+Apache 2.0 license.  This package is maintained by Kris Kowal.
+
+This work began with [Mark Miller’s proposal][Proposal] for `WeakMap` to ECMA’s
+TC-39, where the JavaScript standard is developed.
+
+[Proposal]: http://wiki.ecmascript.org/doku.php?id=harmony:weak_maps
 
