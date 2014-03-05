@@ -1,7 +1,0 @@
-#!/bin/bash
-
-echo -n 'shim should be '
-node verify.js
-echo -n 'native should be '
-node --harmony_collections verify.js
-

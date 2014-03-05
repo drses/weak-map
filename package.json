@@ -25,7 +25,13 @@
   "bugs": {
     "url": "https://github.com/drses/weak-map/issues"
   },
+  "scripts": {
+    "test": "npm run test:native; npm run test:shim",
+    "test:phantom": "",
+    "test:shim": "node test/index.js",
+    "test:native": "node --harmony_collections test/index.js"
+  },
   "devDependencies": {
-    "matcha": "~0.4.1"
+    "jasminum": "~0.0.0"
   }
 }
