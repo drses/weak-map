@@ -1,12 +1,8 @@
 {
   "name": "weak-map",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "A WeakMap shim for Node.js and browsers",
   "main": "weak-map.js",
-  "scripts": {
-    "test": "./verify",
-    "bench": "matcha bench.js"
-  },
   "repository": {
     "type": "git",
     "url": "git://github.com/drses/weak-map.git"
@@ -32,6 +28,6 @@
     "test:native": "node --harmony_collections test/index.js"
   },
   "devDependencies": {
-    "jasminum": "~0.0.0"
+    "jasminum": "^2.0.1"
   }
 }
