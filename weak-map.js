@@ -338,13 +338,22 @@
     // Object.prototype might not be frozen and
     // Object.create(null) might not be reliable.
 
-    defProp(key, HIDDEN_NAME, {
-      value: hiddenRecord,
-      writable: false,
-      enumerable: false,
-      configurable: false
-    });
-    return hiddenRecord;
+    try {
+      defProp(key, HIDDEN_NAME, {
+        value: hiddenRecord,
+        writable: false,
+        enumerable: false,
+        configurable: false
+      });
+      return hiddenRecord;
+    } catch (error) {
+      // Under some circumstances, isExtensible seems to misreport whether
+      // the HIDDEN_NAME can be defined.
+      // The circumstances have not been isolated, but at least affect
+      // Node.js v0.10.26 on TravisCI / Linux, but not the same version of
+      // Node.js on OS X.
+      return void 0;
+    }
   }
 
   /**
