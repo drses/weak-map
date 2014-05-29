@@ -31,6 +31,6 @@
     "test:native": "node --harmony_collections test/index.js"
   },
   "devDependencies": {
-    "jasminum": "^2.0.1"
+    "jasminum": ">=2.0.2 <3.0.0"
   }
 }
