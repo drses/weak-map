@@ -21,6 +21,9 @@
   "bugs": {
     "url": "https://github.com/drses/weak-map/issues"
   },
+  "files": [
+    "weak-map.js"
+  ],
   "scripts": {
     "test": "npm run test:native; npm run test:shim",
     "test:phantom": "",
