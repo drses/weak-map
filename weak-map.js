@@ -246,7 +246,18 @@
    */
   defProp(Object, 'getOwnPropertyNames', {
     value: function fakeGetOwnPropertyNames(obj) {
-      return gopn(obj).filter(isNotHiddenName);
+      if (Object.prototype.toString.call(obj) === '[object Window]') {
+        try {
+            var originalObjectGetOwnPropertyNames = Object.getOwnPropertyNames;
+            return originalObjectGetOwnPropertyNames(o);
+        } catch (e) { 
+          // IE bug where layout engine calls userland gOPN for cross-domain "window" objects 
+          var cachedWindowNames = typeof window === 'object' ? Object.getOwnPropertyNames(window) : [];
+          return [].concat([], cachedWindowNames); 
+        } 
+      } else {
+        return gopn(obj).filter(isNotHiddenName);        
+      }
     }
   });
 
