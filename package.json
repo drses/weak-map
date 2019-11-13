@@ -17,7 +17,7 @@
   ],
   "author": "Mark Miller <erights@gmail.com>",
   "maintainer": "Kris Kowal <kris@cixar.com>",
-  "license": "Apache 2.0",
+  "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/drses/weak-map/issues"
   },
