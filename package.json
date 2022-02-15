@@ -1,6 +1,6 @@
 {
   "name": "weak-map",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "A WeakMap shim for Node.js and browsers",
   "main": "weak-map.js",
   "repository": {
